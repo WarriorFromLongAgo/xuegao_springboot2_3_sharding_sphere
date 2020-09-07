@@ -1,0 +1,60 @@
+#分库分表
+server:
+  port: 10000
+
+spring:
+  application:
+    name: sharding_sphere_jdbc
+  # ShardingSphere 配置项
+  shardingsphere:
+    datasource:
+      # 所有数据源的名字， 必须是 - 隔开，下面也是
+      names: sharding-jdbc-0, sharding-jdbc-1
+      # 订单 orders 数据源配置 0
+      sharding-jdbc-0:
+        type: com.zaxxer.hikari.HikariDataSource # 使用 Hikari 数据库连接池
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://127.0.0.1:3306/sharding_jdbc_0?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+        username: root
+        password: 123456
+      # 订单 orders 数据源配置 1
+      sharding-jdbc-1:
+        type: com.zaxxer.hikari.HikariDataSource # 使用 Hikari 数据库连接池
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://127.0.0.1:3306/sharding_jdbc_1?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+        username: root
+        password: 123456
+#    分片配置
+    sharding:
+      tables:
+        # orders 表配置
+        orders:
+          # 映射到 sharding-jdbc-0 和 sharding-jdbc-1 数据源的 orders 表们
+          actualDataNodes: sharding-jdbc-0.orders_$->{[0,2,4,6]}, sharding-jdbc-1.orders_$->{[1,3,5,7]}
+          key-generator: # 主键生成策略
+            column: id
+            type: SNOWFLAKE
+          database-strategy:
+            inline:
+#              配置插入到哪个库
+              algorithm-expression: sharding-jdbc-$->{user_id % 2}
+              sharding-column: user_id
+          table-strategy:
+            inline:
+#              配置插入到哪个表
+              algorithm-expression: orders_$->{user_id % 8}
+              sharding-column: user_id
+        # order_config 表配置
+        order_config:
+          actualDataNodes: sharding-jdbc-0.order_config # 仅映射到 ds-orders-0 数据源的 order_config 表
+
+    props:
+      sql:
+        show: true  # 打印SQL
+
+mybatis:
+  # 配置 MyBatis 配置文件路径
+  config-location: classpath:mybatis-config.xml
+  mapper-locations: classpath:mapper/*Mapper.xml
+  type-aliases-package: com.xuegao.sharding_sphere_jdbc.model
+
